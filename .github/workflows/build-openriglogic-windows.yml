@@ -82,7 +82,7 @@ jobs:
                   "endif()\n"
               )
 
-              replacement = f"        ${{{variable}}})"
+              replacement = "        $" + "{" + variable + "})"
 
               content = content.replace(marker, block + marker, 1)
               content = content.replace(old_link, replacement, 1)
