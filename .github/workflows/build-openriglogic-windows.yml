@@ -40,16 +40,61 @@ jobs:
             throw "OpenRigLogic submodule missing."
           }
 
-      - name: Apply Blender Python module patch
+      - name: Patch OpenRigLogic for Blender Python modules
         shell: pwsh
         run: |
-          $patch = Join-Path $env:GITHUB_WORKSPACE "patches/openriglogic-blender-python-module.patch"
+          $script = @'
+          from pathlib import Path
 
-          git -C "third_party/openriglogic" apply --check $patch
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          operations = [
+              (
+                  Path("third_party/openriglogic/python/dna/CMakeLists.txt"),
+                  "${PYDNA}",
+                  "PYDNA_PYTHON_LINK_TARGET",
+              ),
+              (
+                  Path("third_party/openriglogic/python/riglogic/CMakeLists.txt"),
+                  "${PYRL}",
+                  "PYRL_PYTHON_LINK_TARGET",
+              ),
+          ]
 
-          git -C "third_party/openriglogic" apply $patch
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          for path, target, variable in operations:
+              if not path.is_file():
+                  raise FileNotFoundError(path)
+
+              content = path.read_text(encoding="utf-8")
+
+              marker = f"target_link_libraries({target}"
+              old_link = "        Python3::Python)"
+
+              if content.count(marker) != 1:
+                  raise RuntimeError(f"Unexpected target marker in {path}")
+
+              if content.count(old_link) != 1:
+                  raise RuntimeError(f"Unexpected Python link in {path}")
+
+              block = (
+                  "if(TARGET Python3::Module)\n"
+                  f"    set({variable} Python3::Module)\n"
+                  "else()\n"
+                  f"    set({variable} Python3::Python)\n"
+                  "endif()\n"
+              )
+
+              replacement = f"        ${{{variable}}})"
+
+              content = content.replace(marker, block + marker, 1)
+              content = content.replace(old_link, replacement, 1)
+
+              path.write_text(content, encoding="utf-8")
+              print(f"Patched: {path}")
+
+          print("OpenRigLogic Blender Python patch completed.")
+          '@
+
+          $script | python -
+
 
       - name: Configure OpenRigLogic
         shell: pwsh
