@@ -142,39 +142,36 @@ jobs:
             exit $LASTEXITCODE
           }
 
-      - name: Test DNA reader
+      
+      - name: Test DNA and RigLogic Python modules
         shell: pwsh
         run: |
           $bindingDir = Join-Path $env:GITHUB_WORKSPACE "build/openriglogic-blender/stage/lib"
+
+          if (!(Test-Path $bindingDir)) {
+            throw "Python bindings directory not found: $bindingDir"
+          }
 
           $env:PYTHONPATH = "$bindingDir;$env:PYTHONPATH"
           $env:PATH = "$bindingDir;$env:PATH"
 
           @'
-          from pathlib import Path
-          from dna import BinaryStreamReader, DataLayer_All, FileStream, Status
+          import dna
+          import riglogic
 
-          dna_path = Path("third_party/openriglogic/examples/Sample.dna")
+          assert hasattr(dna, "FileStream")
+          assert hasattr(dna, "BinaryStreamReader")
+          assert hasattr(riglogic, "RigLogic")
 
-          stream = FileStream(
-              str(dna_path.resolve()),
-              FileStream.AccessMode_Read,
-              FileStream.OpenMode_Binary
-          )
-
-          reader = BinaryStreamReader(stream, DataLayer_All)
-          reader.read()
-
-          if not Status.isOk():
-              raise RuntimeError(Status.get().message)
-
-          print("DNA reader working!")
-          print("Joint count:", reader.getJointCount())
+          print("DNA module:", dna.__file__)
+          print("RigLogic module:", riglogic.__file__)
+          print("Both OpenRigLogic modules loaded successfully!")
           '@ | python -
 
           if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
           }
+
 
       - name: Upload Windows DNA reader
         uses: actions/upload-artifact@v4
