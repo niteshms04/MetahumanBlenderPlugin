@@ -177,6 +177,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: openriglogic-windows-python313-x64
-          path: build/openriglogic-blender/stage/lib/
+          path: build/openriglogic-blender/stage/
           if-no-files-found: error
           retention-days: 14
